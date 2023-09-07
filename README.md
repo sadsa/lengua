@@ -2,6 +2,11 @@
 
 Connects language learners instantly with native speakers in their target language
 
+## Backend
+
+Login to Linode - `ssh root@172.105.186.25`
+Run Pocketbase - `./pocketbase serve --http="172.105.186.25:80"`
+
 ## Recommended IDE Setup
 
 [VS Code](https://code.visualstudio.com/) + [Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode).
