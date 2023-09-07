@@ -2,24 +2,51 @@
   import { onMount, onDestroy } from "svelte";
   import { currentUser, pb } from "./pocketbase";
 
+  let newMessage: string;
   let messages: any[] = [];
-  let newMessage = "";
+  let unsubscribe: () => void;
 
   onMount(async () => {
     const resultList = await pb
       .collection("messages")
       .getList(1, 50, { sort: "created", expand: "user" });
     messages = resultList.items;
+
+    // Subscribe to realtime messages
+    unsubscribe = await pb
+      .collection("messages")
+      .subscribe("*", async ({ action, record }) => {
+        if (action === "create") {
+          // Fetch associated user
+          const user = await pb.collection("users").getOne(record.user);
+          record.expand = { user };
+          messages = [...messages, record];
+        }
+        if (action === "delete") {
+          messages = messages.filter((m) => m.id !== record.id);
+        }
+      });
+  });
+
+  // Unsubscribe from realtime messages
+  onDestroy(() => {
+    unsubscribe?.();
   });
 
   async function sendMessage() {
+    if (!$currentUser?.id) throw Error("No Current User");
+
     const data = {
       text: newMessage,
-      user: $currentUser?.id,
+      user: $currentUser.id,
     };
 
-    const createdMessage = await pb.collection("messages").create(data);
+    await pb.collection("messages").create(data);
     newMessage = "";
+  }
+
+  async function deleteMessage(id: string) {
+    await pb.collection("messages").delete(id);
   }
 </script>
 
@@ -37,6 +64,7 @@
           Sent by @{message.expand?.user?.username}
         </small>
         <p class="message-text">{message.text}</p>
+        <button on:click={() => deleteMessage(message.id)}>Delete</button>
       </div>
     </div>
   {/each}
